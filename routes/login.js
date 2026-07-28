@@ -70,12 +70,6 @@ router.post("/", async (req, res) => {
             });
         }
 
-        const sampleReq = await axios.post("https://flask-server-385567705550.us-central1.run.app/ledger/query-contract", {
-            "contract_id": "1:CTR:00443aKgJA2TaQMtJZf4jzhLpULPEb4DEuNfAQEL8WFd8"
-        });
-
-        console.log("Sample request response:", sampleReq);
-
         return res.status(200).json({
             success: true,
             message: "Login successful.",
