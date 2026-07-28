@@ -8,6 +8,7 @@ const loginRoute = require("./routes/login");
 const statusRoute = require("./routes/status");
 const historyRoute = require("./routes/history");
 const customersRoute = require("./routes/customers");
+const getHistoryRoute = require("./routes/getHistory");
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/login", loginRoute);
 app.use("/status", statusRoute);
 app.use("/history", historyRoute);
 app.use("/customers", customersRoute);
+app.use("/getHistory", getHistoryRoute);
 
 // Use the port provided by Google Cloud, or 8000 for local development
 const PORT = process.env.PORT || 8000;
