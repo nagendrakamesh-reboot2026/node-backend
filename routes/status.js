@@ -7,12 +7,12 @@ router.post("/", async (req, res) => {
 
     try {
 
-        const { customerDid, kycStatus } = req.body;
+        const { customerDid, kycStatus, productType } = req.body;
 
-        if (!customerDid || !kycStatus) {
+        if (!customerDid || !kycStatus || !productType) {
             return res.status(400).json({
                 success: false,
-                message: "customerDid and kycStatus are required"
+                message: "customerDid, kycStatus, and productType are required"
             });
         }
 
@@ -42,7 +42,7 @@ router.post("/", async (req, res) => {
         }
 
         // Update KYC status
-        users[userIndex].kycStatus = kycStatus;
+        users[userIndex].kycStatus[productType] = kycStatus;
 
         // Save updated users.json
         await usersFile.save(
@@ -56,7 +56,8 @@ router.post("/", async (req, res) => {
             success: true,
             message: "KYC status updated successfully.",
             customerDid,
-            kycStatus
+            kycStatus,
+            productType
         });
 
     } catch (err) {
