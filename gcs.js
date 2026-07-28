@@ -2,7 +2,7 @@ const { Storage } = require("@google-cloud/storage");
 
 const storage = new Storage();
 
-const bucketName = "kyc-documents-team14";
+const bucketName = "reboot-renegades-kyc-backend";
 
 const bucket = storage.bucket(bucketName);
 
