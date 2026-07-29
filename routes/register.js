@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const axios = require("axios");
+
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 const bucket = require("../gcs");
@@ -82,9 +84,17 @@ router.post("/", async (req, res) => {
         // --------------------------
 
         const customerDid = "did:bank:" + uuidv4();
+        const ledgerResponse = await axios.post(
+        "https://flask-server-385567705550.us-central1.run.app/ledger/create-account",{});
+        const ledgerAccountId = ledgerResponse.data.ledger.account_id;
+        const ledgerContractId = ledgerResponse.data.ledger.contract_id;
+                                                        
+        
 
         const newUser = {
             customerDid,
+            ledgerAccountId,
+            ledgerContractId,
             name,
             email,
             products: {
@@ -109,6 +119,8 @@ router.post("/", async (req, res) => {
         // Save customer.json
         const customer = {
             customerDid,
+            ledgerAccountId,
+            ledgerContractId,
             name,
             email
         };
@@ -126,6 +138,8 @@ router.post("/", async (req, res) => {
             success: true,
             message: "Customer Registered Successfully",
             customerDid,
+            ledgerAccountId,
+            ledgerContractId,
             name,
             email,
             productType

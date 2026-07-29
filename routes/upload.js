@@ -7,6 +7,8 @@ const path = require("path");
 const crypto = require("crypto");
 const bucket = require("../gcs");
 
+const axios = require("axios");
+
 // Temporary uploads folder
 const uploadDir = path.join(process.cwd(), "uploads");
 
@@ -97,6 +99,9 @@ router.post("/", uploadFields, async (req, res) => {
         const uploadedDocuments = [];
 
         // Process each uploaded document
+        let identityHash = "";
+        let addressHash = "";
+        let dobHash = "";
         for (const [documentCategory, files] of Object.entries(req.files)) {
 
             const file = files[0];
@@ -115,6 +120,16 @@ router.post("/", uploadFields, async (req, res) => {
                 .createHash("sha256")
                 .update(fileBuffer)
                 .digest("hex");
+            if (documentCategory === "proofOfIdentity") {
+                identityHash = fileHash;
+                }
+            if (documentCategory === "proofOfAddress") {
+            addressHash = fileHash;
+                }
+            if (documentCategory === "proofOfDOB") {
+                dobHash = fileHash;
+            }    
+
 
             // Preserve original extension
             const extension = path.extname(file.originalname);
@@ -158,11 +173,34 @@ router.post("/", uploadFields, async (req, res) => {
             }
         );
 
+        // ------------------------------
+        // Verify KYC on Universal Ledger
+        // ------------------------------
+
+        const user = users[userIndex];
+        const productType = Object.keys(user.products)[0];
+
+        const ledgerResponse = await axios.post(
+            "https://flask-server-385567705550.us-central1.run.app/ledger/verify-kyc",
+            {
+                participant_account_id: user.ledgerAccountId,
+                contract_id: user.ledgerContractId,
+                customer_did: user.customerDid,
+                product_type: productType,
+                identity_hash: identityHash,
+                address_hash: addressHash,
+                dob_hash: dobHash,
+                verified_by: productType,
+                verified_timestamp: new Date().toISOString()
+            }
+        );
+
         res.status(200).json({
             success: true,
-            message: "Documents uploaded successfully",
+            message: "Documents uploaded and KYC verified successfully",
             customerDid,
-            documents: uploadedDocuments
+            documents: uploadedDocuments,
+            ledger: ledgerResponse.data
         });
 
     } catch (err) {

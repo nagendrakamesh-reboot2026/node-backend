@@ -1,13 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
+const axios = require("axios");
 const crypto = require("crypto");
 const bucket = require("../gcs");
 
 router.post("/", async (req, res) => {
-
     try {
-
         const { customerDid } = req.body;
 
         if (!customerDid) {
@@ -43,6 +42,23 @@ router.post("/", async (req, res) => {
             });
         }
 
+        // Query Universal Ledger
+        const ledgerResponse = await axios.post(
+            "https://flask-server-385567705550.us-central1.run.app/ledger/query-contract",
+            {
+                contract_id: customer.ledgerContractId
+            }
+        );
+
+        if (!ledgerResponse.data.success) {
+            return res.status(500).json({
+                success: false,
+                message: "Failed to retrieve contract from Universal Ledger."
+            });
+        }
+
+        const ledgerState = ledgerResponse.data.contract_state;
+
         const folder = `customers/${customerDid.replace(/:/g, "_")}/`;
 
         const [files] = await bucket.getFiles({
@@ -55,7 +71,6 @@ router.post("/", async (req, res) => {
         );
 
         if (documentFiles.length === 0) {
-
             return res.status(200).json({
                 success: true,
                 message: "Customer found but no documents uploaded.",
@@ -64,7 +79,6 @@ router.post("/", async (req, res) => {
                 email: customer.email,
                 documents: []
             });
-
         }
 
         const documents = [];
@@ -88,7 +102,7 @@ router.post("/", async (req, res) => {
                 .update(buffer)
                 .digest("hex");
 
-            // Get stored metadata
+            // Metadata from users.json
             const storedDocument = customer.documents?.[documentCategory];
 
             if (!storedDocument) {
@@ -98,8 +112,28 @@ router.post("/", async (req, res) => {
                 });
             }
 
-            // Verify integrity
-            if (storedDocument.hash !== currentHash) {
+            // Get expected hash from Universal Ledger
+            let expectedHash = "";
+
+            switch (documentCategory) {
+                case "proofOfIdentity":
+                    expectedHash = ledgerState.identity_hash;
+                    break;
+
+                case "proofOfAddress":
+                    expectedHash = ledgerState.address_hash;
+                    break;
+
+                case "proofOfDOB":
+                    expectedHash = ledgerState.dob_hash;
+                    break;
+
+                default:
+                    continue;
+            }
+
+            // Verify integrity against Universal Ledger
+            if (expectedHash !== currentHash) {
                 return res.status(403).json({
                     success: false,
                     message: `${documentCategory} has been tampered with`
@@ -121,7 +155,6 @@ router.post("/", async (req, res) => {
                 hashVerified: true,
                 url
             });
-
         }
 
         res.status(200).json({
@@ -130,20 +163,20 @@ router.post("/", async (req, res) => {
             customerDid,
             name: customer.name,
             email: customer.email,
+            verifiedBy: ledgerState.verified_by,
+            verifiedAt: ledgerState.verified_timestamp,
+            productType: ledgerState.product_type,
             documents
         });
 
     } catch (err) {
-
         console.error(err);
 
         res.status(500).json({
             success: false,
             message: err.message
         });
-
     }
-
 });
 
 module.exports = router;
